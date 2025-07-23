@@ -15,19 +15,28 @@ bot = interactions.Client(intents=intents,command_prefix="/")
 
 openai_client = OpenAI(api_key=chatgpt_token)
 
-banned_words = {}
-transcribe_channel = {}
+guild_data = {}
+debug_mode = True #Prints guild data to console when check_values runs
+
+class GuildData:
+    def __init__(self, guild_id):
+        self.guild_id = guild_id
+        self.banned_words = []
+        self.transcribe_channel = None
+        self.user_strikes = {}
 
 
 async def check_values(guild_id):
-    if not guild_id in banned_words:
-        banned_words[guild_id] = []
-    if not guild_id in transcribe_channel:
-        transcribe_channel[guild_id] = None
+    if not guild_id in guild_data:
+        guild_data[guild_id] = GuildData(guild_id)
+    if debug_mode:
+        print(guild_data[guild_id].__dict__)
 
 
 async def transcribe_and_kick(ctx, user_id, file):
     await check_values(ctx.guild_id)
+    transcribe_channel = guild_data[ctx.guild_id].transcribe_channel
+    banned_words = guild_data[ctx.guild_id].banned_words
 
     member = await ctx.guild.fetch_member(user_id)
     loop = asyncio.get_event_loop()
@@ -44,11 +53,11 @@ async def transcribe_and_kick(ctx, user_id, file):
     if transcription.text is None:
         return
 
-    if transcribe_channel[ctx.guild_id] is not None:
+    if transcribe_channel is not None:
         if member:
-            await transcribe_channel[ctx.guild_id].send(f"{member.display_name}: {transcription.text}")
+            await transcribe_channel.send(f"{member.display_name}: {transcription.text}")
 
-    if any(text in transcription.text.lower() for text in banned_words[ctx.guild_id]):
+    if any(text in transcription.text.lower() for text in banned_words):
         if member and member.voice:
             await member.move(None)
             await ctx.send(f"{member.display_name} said a banned word and was kicked (Message: {transcription.text})")
@@ -109,10 +118,11 @@ async def leave(ctx: SlashContext):
 )
 async def banword(ctx: SlashContext, word: str):
     await check_values(ctx.guild_id)
+    banned_words = guild_data[ctx.guild_id].banned_words
 
-    if not word.lower() in banned_words[ctx.guild_id]:
-        banned_words[ctx.guild_id].append(word.lower())
-        await ctx.send(f'Added "{word.lower()}" to banned words list ({", ".join(banned_words[ctx.guild_id])})')
+    if not word.lower() in banned_words:
+        banned_words.append(word.lower())
+        await ctx.send(f'Added "{word.lower()}" to banned words list ({", ".join(banned_words)})')
     else:
         await ctx.send(f'"{word.lower()}" is already banned') 
 
@@ -126,10 +136,11 @@ async def banword(ctx: SlashContext, word: str):
 )
 async def unbanword(ctx: SlashContext, word: str):
     await check_values(ctx.guild_id)
+    banned_words = guild_data[ctx.guild_id].banned_words
     
-    if word.lower() in banned_words[ctx.guild_id]:
-        banned_words[ctx.guild_id].remove(word.lower())
-        await ctx.send(f'Removed "{word.lower()}" from banned words list ({", ".join(banned_words[ctx.guild_id])})')
+    if word.lower() in banned_words:
+        banned_words.remove(word.lower())
+        await ctx.send(f'Removed "{word.lower()}" from banned words list ({", ".join(banned_words)})')
     else:
         await ctx.send(f'"{word.lower()}" could not be found in the banned word list') 
 
@@ -142,27 +153,27 @@ async def unbanword(ctx: SlashContext, word: str):
     opt_type=interactions.OptionType.CHANNEL
 )
 async def starttranscribing(ctx: SlashContext, channel: interactions.BaseChannel):
-    global transcribe_channel
     await check_values(ctx.guild_id)
+    transcribe_channel = guild_data[ctx.guild_id].transcribe_channel
 
-    if transcribe_channel[ctx.guild_id] is not None:
+    if transcribe_channel is not None:
         await ctx.send("Already transcribing to a channel")
         return
     
-    transcribe_channel[ctx.guild_id] = channel
+    transcribe_channel = channel
     await ctx.send(f"Now transcribing to {channel.mention}")
     
 
 @slash_command(name="stoptranscribing",description="Stop transcribing to any channels")
 async def stoptranscribing(ctx: SlashContext):
-    global transcribe_channel
     await check_values(ctx.guild_id)
+    transcribe_channel = guild_data[ctx.guild_id].transcribe_channel
 
-    if transcribe_channel[ctx.guild_id] is None:
+    if transcribe_channel is None:
         await ctx.send("Not currently transcribing to any channels")
         return
     
-    transcribe_channel[ctx.guild_id] = None
+    transcribe_channel = None
     await ctx.send(f"No longer transcribing to any channels")
 
 bot.start(discord_token)
