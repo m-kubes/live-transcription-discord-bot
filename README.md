@@ -1,7 +1,7 @@
-# live transcription discord bot
+# Live Transcription Discord Bot
 To use, add a .env file with your discord and openAi tokens in it in this format: \
-`DISCORD_TOKEN=''`\
-`CHATGPT_TOKEN=''`\
+`DISCORD_TOKEN=''` \
+`CHATGPT_TOKEN=''` 
 # Commands Overview
 ### /listen
 Joins your call and listens indefinitely \
