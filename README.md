@@ -1,5 +1,5 @@
 # Live Transcription Discord Bot
-To use, add a .env file with your discord and openAi tokens in it in this format: \
+Requires the following environment variables: \
 `DISCORD_TOKEN=''` \
 `CHATGPT_TOKEN=''` 
 # Commands Overview
